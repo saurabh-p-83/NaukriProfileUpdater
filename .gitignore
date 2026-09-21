@@ -1,0 +1,8 @@
+bin/
+obj/
+browser-profile/
+diagnostics/
+resume.pdf
+*.user
+*.suo
+.vs/
