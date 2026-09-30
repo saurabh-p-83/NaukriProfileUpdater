@@ -67,7 +67,13 @@ switch (strategyName.Trim().ToLowerInvariant())
             $"Unknown ProfileUpdate:Strategy '{strategyName}'. " +
             "Valid values: SkillToggle, HeadlineRefresh, ResumeReupload.");
 }
-
+LogMessage.Log(
+    "Program",
+    "Main",
+    "NaukriProfileUpdater",
+    $"Using strategy: {strategy.Name}",
+    false,
+    false);
 var diagnostics = new DiagnosticsService();
 var browserService = new BrowserSessionService(options, diagnostics);
 var naukri = new NaukriProfileService(browserService, diagnostics);

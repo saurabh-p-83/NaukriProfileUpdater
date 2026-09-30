@@ -124,6 +124,7 @@ public sealed class NaukriProfileService
 
     public async Task ToggleSkillAsync(IPage page, string skillName)
     {
+        LogMessage.Log("NaukriProfileService", "ToggleSkillAsync", "", $"Updating skill: {skillName}");
         Console.WriteLine($"Updating skill: {skillName}");
 
         // Remove existing skill
@@ -131,13 +132,14 @@ public sealed class NaukriProfileService
         
         await RemoveSkillAsync(page, skillName);
         await SaveAsync(page);
-
+        LogMessage.Log("NaukriProfileService", "ToggleSkillAsync", "", $"Skill removal saved: {skillName}");
         Console.WriteLine($"Skill removal saved: {skillName}");
 
         // Add the same skill again
         await OpenSkillsEditorAsync(page);
         await AddSkillAsync(page, skillName);
         await SaveAsync(page);
+        LogMessage.Log("NaukriProfileService", "ToggleSkillAsync", "", $"Skill added and saved: {skillName}");
 
         Console.WriteLine($"Skill added and saved: {skillName}");
     }
@@ -190,7 +192,7 @@ public sealed class NaukriProfileService
     private async Task AddSkillAsync(IPage page, string skillName)
     {
         Console.WriteLine($"Adding skill: {skillName}");
-
+        LogMessage.Log("NaukriProfileService", "AddSkillAsync", "", $"Adding skill: {skillName}");
         var editor = page.Locator(
             "div.lightbox.profileEditDrawer.keySkillsEdit"
         );
@@ -202,7 +204,7 @@ public sealed class NaukriProfileService
             State = WaitForSelectorState.Visible,
             Timeout = 10000
         });
-
+        LogMessage.Log("NaukriProfileService", "AddSkillAsync", "", $"Key Skills editor opened for skill: {skillName}");
         Console.WriteLine("Key Skills editor opened.");
 
         // Exact input from the DOM
@@ -216,6 +218,7 @@ public sealed class NaukriProfileService
         }
 
         Console.WriteLine("Key Skills input found.");
+        LogMessage.Log("NaukriProfileService", "AddSkillAsync", "", $"Key Skills input found for skill: {skillName}");
 
         // Enter skill name
         string firstLetter = skillName.Substring(0, 1);
@@ -229,6 +232,7 @@ public sealed class NaukriProfileService
         {
             Delay = 200
         });
+        LogMessage.Log("NaukriProfileService", "AddSkillAsync", "", $"Entered skill: {skillName}");
         Console.WriteLine($"Entered skill: {skillName}");
 
         // Give Naukri time to load suggestions
