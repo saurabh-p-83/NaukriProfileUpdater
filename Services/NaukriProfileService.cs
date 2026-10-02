@@ -474,18 +474,60 @@ public sealed class NaukriProfileService
         await SaveAsync(page);
     }
 
-    public async Task ReuploadResumeAsync(IPage page, string filePath)
+    public async Task ReuploadResumeAsync(IPage page, string resumePath)
     {
-        var fullPath = Path.GetFullPath(filePath);
-        if (!File.Exists(fullPath))
-            throw new FileNotFoundException("Configured resume file was not found.", fullPath);
+        if (!File.Exists(resumePath))
+        {
+            throw new FileNotFoundException(
+                $"Resume file not found: {resumePath}");
+        }
 
-        await ClickFirstVisibleAsync(page, NaukriSelectors.EditButtons);
+        Console.WriteLine($"Starting resume upload: {resumePath}");
 
-        var input = await FirstVisibleAsync(page, NaukriSelectors.ResumeInputs);
-        await input.SetInputFilesAsync(fullPath);
+        // ---------------------------------------------------------
+        // 1. Locate the actual file input
+        // ---------------------------------------------------------
+        var resumeInput = page
+            .Locator("#attachCV")
+            .First;
 
-        await SaveAsync(page);
+        await resumeInput.WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Attached,
+            Timeout = 10000
+        });
+
+        Console.WriteLine("Resume file input found: #attachCV");
+
+        // ---------------------------------------------------------
+        // 2. Directly attach the file
+        // ---------------------------------------------------------
+        await resumeInput.SetInputFilesAsync(resumePath);
+
+        Console.WriteLine($"Resume file selected: {resumePath}");
+
+
+        Console.WriteLine("Resume upload processing completed.");
+    }
+    private async Task DumpResumePageHtmlAsync(IPage page)
+    {
+        try
+        {
+            var html = await page.ContentAsync();
+
+            var path = Path.Combine(
+                AppContext.BaseDirectory,
+                "resume-page.html");
+
+            await File.WriteAllTextAsync(path, html);
+
+            Console.WriteLine($"Full page HTML saved to:");
+            Console.WriteLine(path);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to dump page HTML: {ex.Message}");
+        }
     }
 
     private async Task SaveAsync(IPage page)
