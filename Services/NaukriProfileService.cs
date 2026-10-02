@@ -124,25 +124,96 @@ public sealed class NaukriProfileService
 
     public async Task ToggleSkillAsync(IPage page, string skillName)
     {
-        LogMessage.Log("NaukriProfileService", "ToggleSkillAsync", "", $"Updating skill: {skillName}");
+        LogMessage.Log(
+            "NaukriProfileService",
+            "ToggleSkillAsync",
+            "",
+            $"Updating skill: {skillName}");
+
         Console.WriteLine($"Updating skill: {skillName}");
 
-        // Remove existing skill
+        // ---------------------------------------------------------
+        // STEP 1: Remove existing skill
+        // ---------------------------------------------------------
         await OpenSkillsEditorAsync(page);
-        
+
         await RemoveSkillAsync(page, skillName);
         await SaveAsync(page);
-        LogMessage.Log("NaukriProfileService", "ToggleSkillAsync", "", $"Skill removal saved: {skillName}");
+
+        LogMessage.Log(
+            "NaukriProfileService",
+            "ToggleSkillAsync",
+            "",
+            $"Skill removal saved: {skillName}");
+
         Console.WriteLine($"Skill removal saved: {skillName}");
 
-        // Add the same skill again
-        await OpenSkillsEditorAsync(page);
-        await AddSkillAsync(page, skillName);
-        await SaveAsync(page);
-        LogMessage.Log("NaukriProfileService", "ToggleSkillAsync", "", $"Skill added and saved: {skillName}");
+        // ---------------------------------------------------------
+        // STEP 2: Add the same skill again
+        // ---------------------------------------------------------
+        try
+        {
+            await OpenSkillsEditorAsync(page);
 
-        Console.WriteLine($"Skill added and saved: {skillName}");
+            await AddSkillAsync(page, skillName);
+            await SaveAsync(page);
+
+            LogMessage.Log(
+                "NaukriProfileService",
+                "ToggleSkillAsync",
+                "",
+                $"Skill added and saved: {skillName}");
+
+            Console.WriteLine($"Skill added and saved: {skillName}");
+        }
+        catch (Exception ex)
+        {
+            // The skill was already removed and saved.
+            // If adding fails, immediately try to restore it.
+            Console.WriteLine(
+                $"Failed to add skill '{skillName}'. Starting recovery...");
+
+            LogMessage.Log(
+                "NaukriProfileService",
+                "ToggleSkillAsync",
+                "",
+                $"Add failed for '{skillName}'. Starting recovery. Error: {ex.Message}");
+
+            try
+            {
+                await RestoreSkillAsync(page, skillName);
+
+                LogMessage.Log(
+                    "NaukriProfileService",
+                    "ToggleSkillAsync",
+                    "",
+                    $"Recovery successful. Skill restored: {skillName}");
+
+                Console.WriteLine(
+                    $"Recovery successful. Skill restored: {skillName}");
+            }
+            catch (Exception recoveryException)
+            {
+                LogMessage.Log(
+                    "NaukriProfileService",
+                    "ToggleSkillAsync",
+                    "",
+                    $"CRITICAL: Failed to restore skill '{skillName}'. " +
+                    $"Original error: {ex.Message}. " +
+                    $"Recovery error: {recoveryException.Message}");
+
+                Console.WriteLine(
+                    $"CRITICAL: Could not restore skill '{skillName}'.");
+
+                throw new SelectorOrDomChangeException(
+                    $"Skill '{skillName}' was removed successfully, " +
+                    $"but adding it back failed and recovery also failed. " +
+                    $"Original error: {ex.Message}. " +
+                    $"Recovery error: {recoveryException.Message}");
+            }
+        }
     }
+
 
     private async Task RemoveSkillAsync(IPage page, string skillName)
     {
@@ -504,8 +575,83 @@ public sealed class NaukriProfileService
         await locator.ClickAsync();
     }
 
-    
+
+    private async Task RestoreSkillAsync(IPage page, string skillName)
+    {
+        Console.WriteLine($"Attempting to restore skill: {skillName}");
+
+        // Check whether the editor is already open.
+        // AddSkillAsync may have failed after partially completing
+        // the operation.
+        var editor = page.Locator(
+            "div.lightbox.profileEditDrawer.keySkillsEdit"
+        );
+
+        var editorOpen = await editor.IsVisibleAsync();
+
+        if (!editorOpen)
+        {
+            Console.WriteLine("Key Skills editor is closed. Opening it...");
+            await OpenSkillsEditorAsync(page);
+        }
+        else
+        {
+            Console.WriteLine("Key Skills editor is already open.");
+        }
+
+        // ---------------------------------------------------------
+        // IMPORTANT:
+        // The skill may actually have been added even though
+        // AddSkillAsync threw an exception afterward.
+        //
+        // Check before attempting to add it again.
+        // ---------------------------------------------------------
+        var existingSkill = editor
+            .Locator($"div.chipsContainer div.chip[title=\"{skillName}\"]")
+            .First;
+
+        if (await existingSkill.IsVisibleAsync())
+        {
+            Console.WriteLine(
+                $"Skill '{skillName}' is already present. No duplicate add required.");
+        }
+        else
+        {
+            Console.WriteLine(
+                $"Skill '{skillName}' is not present. Retrying add...");
+
+            await AddSkillAsync(page, skillName);
+        }
+
+        // ---------------------------------------------------------
+        // Save the restored skill
+        // ---------------------------------------------------------
+        await SaveAsync(page);
+
+        // ---------------------------------------------------------
+        // Final verification
+        // ---------------------------------------------------------
+        await OpenSkillsEditorAsync(page);
+
+        var restoredSkill = page
+            .Locator($"div.chipsContainer div.chip[title=\"{skillName}\"]")
+            .First;
+
+        if (!await restoredSkill.IsVisibleAsync())
+        {
+            throw new SelectorOrDomChangeException(
+                $"Recovery save completed, but skill '{skillName}' " +
+                "could not be verified.");
+        }
+
+        Console.WriteLine(
+            $"Verified skill '{skillName}' has been restored.");
+    }
+
+
+
 }
+
 
 public sealed class AccessDeniedException(string message) : Exception(message);
 public sealed class SelectorOrDomChangeException(string message) : Exception(message);
