@@ -504,6 +504,7 @@ public sealed class NaukriProfileService
         // ---------------------------------------------------------
         await resumeInput.SetInputFilesAsync(resumePath);
 
+        await Task.Delay(3000);
         Console.WriteLine($"Resume file selected: {resumePath}");
 
 
